@@ -1,62 +1,20 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-#     * Redistributions of source code must retain the above copyright
-#       notice, this list of conditions and the following disclaimer.
-#     * Redistributions in binary form must reproduce the above
-#       copyright notice, this list of conditions and the following
-#       disclaimer in the documentation and/or other materials provided
-#       with the distribution.
-#     * Neither the name of Google Inc. nor the names of its
-#       contributors may be used to endorse or promote products derived
-#       from this software without specific prior written permission.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-# for py2/py3 compatibility
-from __future__ import print_function
+# Copyright 2016 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
 
 import os
-import shutil
+import re
 
-from testrunner.local import command
 from testrunner.local import testsuite
-from testrunner.local import utils
 from testrunner.objects import testcase
 
-SHELL = 'cctest'
+FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 
 
-class TestLoader(testsuite.TestLoader):
-  def _list_test_filenames(self):
-    shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
-    if utils.IsWindows():
-      shell += ".exe"
-    cmd = command.Command(
-        cmd_prefix=self.test_config.command_prefix,
-        shell=shell,
-        args=["--list"] + self.test_config.extra_flags)
-    output = cmd.execute()
-    # TODO make errors visible (see duplicated code in 'unittests')
-    if output.exit_code != 0:
-      print(cmd)
-      print(output.stdout)
-      print(output.stderr)
-      return []
-
-    return sorted(output.stdout.strip().split())
+class TestLoader(testsuite.JSTestLoader):
+  @property
+  def excluded_files(self):
+    return {"test-api.js"}
 
 
 class TestSuite(testsuite.TestSuite):
@@ -67,24 +25,54 @@ class TestSuite(testsuite.TestSuite):
     return TestCase
 
 
-class TestCase(testcase.TestCase):
-  def get_shell(self):
-    return SHELL
+class TestCase(testcase.D8TestCase):
+  def __init__(self, *args, **kwargs):
+    super(TestCase, self).__init__(*args, **kwargs)
+
+    source = self.get_source()
+    self._source_files = self._parse_source_files(source)
+    self._source_flags = self._parse_source_flags(source)
+
+  def _parse_source_files(self, source):
+    files_list = []  # List of file names to append to command arguments.
+    files_match = FILES_PATTERN.search(source);
+    # Accept several lines of 'Files:'.
+    while True:
+      if files_match:
+        files_list += files_match.group(1).strip().split()
+        files_match = FILES_PATTERN.search(source, files_match.end())
+      else:
+        break
+
+    files = []
+    files.append(os.path.normpath(os.path.join(
+        self.suite.root, "..", "mjsunit", "mjsunit.js")))
+    files.append(os.path.join(self.suite.root, "test-api.js"))
+    files.extend([os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
+                  for f in files_list])
+    files.append(self._get_source_path())
+    return files
 
   def _get_files_params(self):
-    return [self.path]
+    files = self._source_files
+    if self._test_config.isolates:
+      files = files + ['--isolate'] + files
+    return files
 
-  def _get_resources(self):
-    # Bytecode-generator tests are the only ones requiring extra files on
-    # Android.
-    parts = self.name.split('/')
-    if parts[0] == 'test-bytecode-generator':
-      expectation_file = os.path.join(
-          self.suite.root, 'interpreter', 'bytecode_expectations',
-          '%s.golden' % parts[1])
-      if os.path.exists(expectation_file):
-        return [expectation_file]
-    return []
+  def _get_source_flags(self):
+    return self._source_flags
+
+  def _get_suite_flags(self):
+    return ['--enable-inspector', '--allow-natives-syntax']
+
+  def _get_source_path(self):
+    base_path = os.path.join(self.suite.root, self.path)
+    # Try .js first, and fall back to .mjs.
+    # TODO(v8:9406): clean this up by never separating the path from
+    # the extension in the first place.
+    if os.path.exists(base_path + self._get_suffix()):
+      return base_path + self._get_suffix()
+    return base_path + '.mjs'
 
 
 def GetSuite(*args, **kwargs):
