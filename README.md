@@ -1,27 +1,40 @@
-# JavaScript tests with expected output
+V8 JavaScript Engine
+=============
 
-Tests in `test/message` pass if the output matches the expected output.
-Message tests are particularly useful when checking for exact error messages.
+V8 is Google's open source JavaScript engine.
 
-Tests and their expected output must have the same filename, with the `.js` and
-`.out` extension.
+V8 implements ECMAScript as specified in ECMA-262.
 
-```
-foo.js
-foo.out
-```
+V8 is written in C++ and is used in Google Chrome, the open source
+browser from Google.
 
-**All tests must end with an exception**. The test runner does not
-handle output from multiple runs, e.g.,  `--stress-opt`. Without an exception,
-the output will be generated several times and the comparison will fail.
+V8 can run standalone, or can be embedded into any C++ application.
 
-You can use a regex in the expected output instead of the exact
-path:
+V8 Project page: https://v8.dev/docs
 
-```
-*%(basename)s:7: SyntaxError: Detected cycle while resolving name 'a'
-```
 
-Empty lines are ignored in the comparison, but whitespaces are not.
+Getting the Code
+=============
 
-Exact details of the test runner are in [testcfg.py](testcfg.py).
+Checkout [depot tools](http://www.chromium.org/developers/how-tos/install-depot-tools), and run
+
+        fetch v8
+
+This will checkout V8 into the directory `v8` and fetch all of its dependencies.
+To stay up to date, run
+
+        git pull origin
+        gclient sync
+
+For fetching all branches, add the following into your remote
+configuration in `.git/config`:
+
+        fetch = +refs/branch-heads/*:refs/remotes/branch-heads/*
+        fetch = +refs/tags/*:refs/tags/*
+
+
+Contributing
+=============
+
+Please follow the instructions mentioned at
+[v8.dev/docs/contribute](https://v8.dev/docs/contribute).

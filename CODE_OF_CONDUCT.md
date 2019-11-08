@@ -1,4 +1,8 @@
-# Code of Conduct
+# V8 Code of Conduct
 
-* [Node.js Code of Conduct](https://github.com/nodejs/admin/blob/master/CODE_OF_CONDUCT.md)
-* [Node.js Moderation Policy](https://github.com/nodejs/admin/blob/master/Moderation-Policy.md)
+As part of the Chromium team, the V8 team is committed to preserving and
+fostering a diverse, welcoming community. To this end, the [Chromium Code of
+Conduct](https://chromium.googlesource.com/chromium/src/+/master/CODE_OF_CONDUCT.md)
+applies to our repos and organizations, mailing lists, blog content, and any
+other Chromium-supported communication group, as well as any private
+communication initiated in the context of these spaces.
