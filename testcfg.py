@@ -3,18 +3,24 @@
 # found in the LICENSE file.
 
 import os
-import re
 
 from testrunner.local import testsuite
+from testrunner.local import utils
 from testrunner.objects import testcase
+from testrunner.outproc import base as outproc
 
-FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
-
+PROTOCOL_TEST_JS = "protocol-test.js"
+EXPECTED_SUFFIX = "-expected.txt"
+RESOURCES_FOLDER = "resources"
 
 class TestLoader(testsuite.JSTestLoader):
   @property
   def excluded_files(self):
-    return {"test-api.js"}
+    return {PROTOCOL_TEST_JS}
+
+  @property
+  def excluded_dirs(self):
+    return {RESOURCES_FOLDER}
 
 
 class TestSuite(testsuite.TestSuite):
@@ -25,54 +31,38 @@ class TestSuite(testsuite.TestSuite):
     return TestCase
 
 
-class TestCase(testcase.D8TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 
-    source = self.get_source()
-    self._source_files = self._parse_source_files(source)
-    self._source_flags = self._parse_source_flags(source)
-
-  def _parse_source_files(self, source):
-    files_list = []  # List of file names to append to command arguments.
-    files_match = FILES_PATTERN.search(source);
-    # Accept several lines of 'Files:'.
-    while True:
-      if files_match:
-        files_list += files_match.group(1).strip().split()
-        files_match = FILES_PATTERN.search(source, files_match.end())
-      else:
-        break
-
-    files = []
-    files.append(os.path.normpath(os.path.join(
-        self.suite.root, "..", "mjsunit", "mjsunit.js")))
-    files.append(os.path.join(self.suite.root, "test-api.js"))
-    files.extend([os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
-                  for f in files_list])
-    files.append(self._get_source_path())
-    return files
+    self._source_flags = self._parse_source_flags()
 
   def _get_files_params(self):
-    files = self._source_files
-    if self._test_config.isolates:
-      files = files + ['--isolate'] + files
-    return files
+    return [
+      os.path.join(self.suite.root, PROTOCOL_TEST_JS),
+      os.path.join(self.suite.root, self.path + self._get_suffix()),
+    ]
 
   def _get_source_flags(self):
     return self._source_flags
 
-  def _get_suite_flags(self):
-    return ['--enable-inspector', '--allow-natives-syntax']
-
   def _get_source_path(self):
-    base_path = os.path.join(self.suite.root, self.path)
-    # Try .js first, and fall back to .mjs.
-    # TODO(v8:9406): clean this up by never separating the path from
-    # the extension in the first place.
-    if os.path.exists(base_path + self._get_suffix()):
-      return base_path + self._get_suffix()
-    return base_path + '.mjs'
+    return os.path.join(self.suite.root, self.path + self._get_suffix())
+
+  def get_shell(self):
+    return 'inspector-test'
+
+  def _get_resources(self):
+    return [
+      os.path.join(
+        'test', 'inspector', 'debugger', 'resources', 'break-locations.js'),
+    ]
+
+  @property
+  def output_proc(self):
+    return outproc.ExpectedOutProc(
+        self.expected_outcomes,
+        os.path.join(self.suite.root, self.path) + EXPECTED_SUFFIX)
 
 
 def GetSuite(*args, **kwargs):
