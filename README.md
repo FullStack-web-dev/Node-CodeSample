@@ -1,79 +1,434 @@
-This has a new binding scheme in building OpenSSL-1.1.0 library with
-Node.js. OpenSSL-1.1.0 uses a new build system with `Perl` for various
-supported platforms. See `openssl/Configurations/README` and
-`openssl/Configurations/README.design` in the OpenSSL source for
-details.
+![libuv][libuv_banner]
 
-In order to build OpenSSL library without `Perl` in the build of Node.js
-for various supported platforms, platform dependent files (e.g. asm
-and header files ) are pre-generated and stored into the
-`config/archs` directory.
+## Overview
 
-- `config/Makefile` and `config/generate_gypi.pl`
+libuv is a multi-platform support library with a focus on asynchronous I/O. It
+was primarily developed for use by [Node.js][], but it's also
+used by [Luvit](http://luvit.io/), [Julia](http://julialang.org/),
+[pyuv](https://github.com/saghul/pyuv), and [others](https://github.com/libuv/libuv/wiki/Projects-that-use-libuv).
 
-  Makefile has supported platform list and generates and copies
-  platform dependent files (e.g. asm files) into arch directory with
-  `generate_gypi.pl`.  Platform dependent gypi files also created
-  obtaining build information from `configdata.pm` that is generated
-  with `Configure` in the OpenSSL build system.
+## Feature highlights
 
-  For Windows, `Configure` generates `makefile` that is only available
-  to `nmake` command.  `config/Makefile_VC-WIN32` and
-  `config/Makefile_VC-WIN64A` are made by hand for the use of GNU
-  make. If `makefile` rules or targets are changed in the version up
-  of OpenSSL, they should be also updated.
+ * Full-featured event loop backed by epoll, kqueue, IOCP, event ports.
 
-- gyp and gypi files (`openssl*.{gyp,gypi}`)
+ * Asynchronous TCP and UDP sockets
 
-  `openssl.gyp` has two targets of openssl and openssl-cli referred
-  from `node.gyp`. They include asm and no_asm gypi files with arch
-  dependent gypi according to its build options and platforms. The
-  gyp data which is common with asm and no_asm are stored in
-  `openssl_common.gypi`.
+ * Asynchronous DNS resolution
 
-- header files (`config/*.{h,h.tmpl}`)
+ * Asynchronous file and file system operations
 
-  `bn_conf.h`, `dso_conf.h` and `opensslconf.h` are platform dependent
-  in the OpenSSL sources. They are replaced with `config/*.h.tmpl`
-  files to include the file in the `../../../config/` and referred to
-  each arch file that depends on asm and no-asm option.
+ * File system events
 
-### Supported architectures for use of ASM
+ * ANSI escape code controlled TTY
 
-Here is a list of supported architectures for use of ASM in OpenSSL.
+ * IPC with socket sharing, using Unix domain sockets or named pipes (Windows)
 
-  | --dest-os | --dest-cpu | OpenSSL target arch  | CI  |
-  | --------- | ---------- | -------------------- | --- |
-  | aix       | ppc        | aix-gcc              | o   |
-  | aix       | ppc64      | aix64-gcc            | o   |
-  | linux     | ia32       | linux-elf            | o   |
-  | linux     | x32        | linux-x32            | -   |
-  | linux     | x64        | linux-x86_64         | o   |
-  | linux     | arm        | linux-armv4          | o   |
-  | linux     | arm64      | linux-aarch64        | o   |
-  | linux     | ppc        | linux-ppc            | o   |
-  | linux     | ppc64      | linux-ppc64          | o   |
-  | linux     | ppc64(*1)  | linux-ppc64le        | o   |
-  | linux     | s390       | linux32-s390x        | o   |
-  | linux     | s390x      | linux64-s390x        | o   |
-  | mac       | ia32       | darwin-i386-cc       | -   |
-  | mac       | x64        | darwin64-x86-cc      | o   |
-  | win       | ia32       | VC-WIN32             | -   |
-  | win       | x64        | VC-WIN64A            | o   |
-  | solaris   | ia32       | solaris-x86-gcc      | o   |
-  | solaris   | x64        | solaris64-x86_64-gcc | o   |
-  | freebsd   | ia32       | BSD-x86              | -   |
-  | freebsd   | x64        | BSD-x86_64           | o   |
-  | openbsd   | ia32       | BSD-x86              | -   |
-  | openbsd   | x64        | BSD-x86_64           | -   |
-  | others    | others     | linux-elf            | -   |
+ * Child processes
 
-(*1: This needs to be configured with the variable of node_byteorder:
-little)
+ * Thread pool
 
-These are listed in [config/Makefile](config/Makefile).
-Please refer [config/opensslconf_asm.h](config/opensslconf_asm.h) for details.
+ * Signal handling
 
-### Upgrading OpenSSL
+ * High resolution clock
 
-Please refer [config/README.md](config/README.md).
+ * Threading and synchronization primitives
+
+## Versioning
+
+Starting with version 1.0.0 libuv follows the [semantic versioning](http://semver.org/)
+scheme. The API change and backwards compatibility rules are those indicated by
+SemVer. libuv will keep a stable ABI across major releases.
+
+The ABI/API changes can be tracked [here](http://abi-laboratory.pro/tracker/timeline/libuv/).
+
+## Licensing
+
+libuv is licensed under the MIT license. Check the [LICENSE file](LICENSE).
+The documentation is licensed under the CC BY 4.0 license. Check the [LICENSE-docs file](LICENSE-docs).
+
+## Community
+
+ * [Support](https://github.com/libuv/help)
+ * [Mailing list](http://groups.google.com/group/libuv)
+ * [IRC chatroom (#libuv@irc.freenode.org)](http://webchat.freenode.net?channels=libuv&uio=d4)
+
+## Documentation
+
+### Official documentation
+
+Located in the docs/ subdirectory. It uses the [Sphinx](http://sphinx-doc.org/)
+framework, which makes it possible to build the documentation in multiple
+formats.
+
+Show different supported building options:
+
+```bash
+$ make help
+```
+
+Build documentation as HTML:
+
+```bash
+$ make html
+```
+
+Build documentation as HTML and live reload it when it changes (this requires
+sphinx-autobuild to be installed and is only supported on Unix):
+
+```bash
+$ make livehtml
+```
+
+Build documentation as man pages:
+
+```bash
+$ make man
+```
+
+Build documentation as ePub:
+
+```bash
+$ make epub
+```
+
+NOTE: Windows users need to use make.bat instead of plain 'make'.
+
+Documentation can be browsed online [here](http://docs.libuv.org).
+
+The [tests and benchmarks](https://github.com/libuv/libuv/tree/master/test)
+also serve as API specification and usage examples.
+
+### Other resources
+
+ * [LXJS 2012 talk](http://www.youtube.com/watch?v=nGn60vDSxQ4)
+   &mdash; High-level introductory talk about libuv.
+ * [libuv-dox](https://github.com/thlorenz/libuv-dox)
+   &mdash; Documenting types and methods of libuv, mostly by reading uv.h.
+ * [learnuv](https://github.com/thlorenz/learnuv)
+   &mdash; Learn uv for fun and profit, a self guided workshop to libuv.
+
+These resources are not handled by libuv maintainers and might be out of
+date. Please verify it before opening new issues.
+
+## Downloading
+
+libuv can be downloaded either from the
+[GitHub repository](https://github.com/libuv/libuv)
+or from the [downloads site](http://dist.libuv.org/dist/).
+
+Starting with libuv 1.7.0, binaries for Windows are also provided. This is to
+be considered EXPERIMENTAL.
+
+Before verifying the git tags or signature files, importing the relevant keys
+is necessary. Key IDs are listed in the
+[MAINTAINERS](https://github.com/libuv/libuv/blob/master/MAINTAINERS.md)
+file, but are also available as git blob objects for easier use.
+
+Importing a key the usual way:
+
+```bash
+$ gpg --keyserver pool.sks-keyservers.net --recv-keys AE9BC059
+```
+
+Importing a key from a git blob object:
+
+```bash
+$ git show pubkey-saghul | gpg --import
+```
+
+### Verifying releases
+
+Git tags are signed with the developer's key, they can be verified as follows:
+
+```bash
+$ git verify-tag v1.6.1
+```
+
+Starting with libuv 1.7.0, the tarballs stored in the
+[downloads site](http://dist.libuv.org/dist/) are signed and an accompanying
+signature file sit alongside each. Once both the release tarball and the
+signature file are downloaded, the file can be verified as follows:
+
+```bash
+$ gpg --verify libuv-1.7.0.tar.gz.sign
+```
+
+## Build Instructions
+
+For GCC there are two build methods: via autotools or via [GYP][].
+GYP is a meta-build system which can generate MSVS, Makefile, and XCode
+backends. It is best used for integration into other projects.
+
+To build with autotools:
+
+```bash
+$ sh autogen.sh
+$ ./configure
+$ make
+$ make check
+$ make install
+```
+
+To build with [CMake](https://cmake.org/):
+
+```bash
+$ mkdir -p out/cmake ; cd out/cmake   # create build directory
+$ cmake ../.. -DBUILD_TESTING=ON      # generate project with test
+$ cmake --build .                     # build
+$ ctest -C Debug --output-on-failure  # run tests
+
+# Or manually run tests:
+$ ./out/cmake/uv_run_tests    # shared library build
+$ ./out/cmake/uv_run_tests_a  # static library build
+```
+
+To build with GYP, first run:
+
+```bash
+$ git clone https://chromium.googlesource.com/external/gyp build/gyp
+```
+
+### Windows
+
+Prerequisites:
+
+* [Python 2.6 or 2.7][] as it is required
+  by [GYP][].
+  If python is not in your path, set the environment variable `PYTHON` to its
+  location. For example: `set PYTHON=C:\Python27\python.exe`
+* One of:
+  * [Visual C++ Build Tools][]
+  * [Visual Studio 2015 Update 3][], all editions
+    including the Community edition (remember to select
+    "Common Tools for Visual C++ 2015" feature during installation).
+  * [Visual Studio 2017][], any edition (including the Build Tools SKU).
+    **Required Components:** "MSbuild", "VC++ 2017 v141 toolset" and one of the
+    Windows SDKs (10 or 8.1).
+* Basic Unix tools required for some tests,
+  [Git for Windows][] includes Git Bash
+  and tools which can be included in the global `PATH`.
+
+To build, launch a git shell (e.g. Cmd or PowerShell), run `vcbuild.bat`
+(to build with VS2017 you need to explicitly add a `vs2017` argument),
+which will checkout the GYP code into `build/gyp`, generate `uv.sln`
+as well as the necesery related project files, and start building.
+
+```console
+> vcbuild
+```
+
+Or:
+
+```console
+> vcbuild vs2017
+```
+
+To run the tests:
+
+```console
+> vcbuild test
+```
+
+To see all the options that could passed to `vcbuild`:
+
+```console
+> vcbuild help
+vcbuild.bat [debug/release] [test/bench] [clean] [noprojgen] [nobuild] [vs2017] [x86/x64] [static/shared]
+Examples:
+  vcbuild.bat              : builds debug build
+  vcbuild.bat test         : builds debug build and runs tests
+  vcbuild.bat release bench: builds release build and runs benchmarks
+```
+
+
+### Unix
+
+For Debug builds (recommended) run:
+
+```bash
+$ ./gyp_uv.py -f make
+$ make -C out
+```
+
+For Release builds run:
+
+```bash
+$ ./gyp_uv.py -f make
+$ BUILDTYPE=Release make -C out
+```
+
+Run `./gyp_uv.py -f make -Dtarget_arch=x32` to build [x32][] binaries.
+
+### OS X
+
+Run:
+
+```bash
+$ ./gyp_uv.py -f xcode
+$ xcodebuild -ARCHS="x86_64" -project out/uv.xcodeproj -configuration Release -alltargets
+```
+
+Using Homebrew:
+
+```bash
+$ brew install --HEAD libuv
+```
+
+Note to OS X users:
+
+Make sure that you specify the architecture you wish to build for in the
+"ARCHS" flag. You can specify more than one by delimiting with a space
+(e.g. "x86_64 i386").
+
+### Android
+
+Run:
+
+For arm
+
+```bash
+$ source ./android-configure-arm NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for arm64
+
+```bash
+$ source ./android-configure-arm64 NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for x86
+
+```bash
+$ source ./android-configure-x86 NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+or for x86_64
+
+```bash
+$ source ./android-configure-x86_64 NDK_PATH gyp [API_LEVEL]
+$ make -C out
+```
+
+The default API level is 24, but a different one can be selected as follows:
+
+```bash
+$ source ./android-configure-arm ~/android-ndk-r15b gyp 21
+$ make -C out
+```
+
+Note for UNIX users: compile your project with `-D_LARGEFILE_SOURCE` and
+`-D_FILE_OFFSET_BITS=64`. GYP builds take care of that automatically.
+
+### Using Ninja
+
+To use ninja for build on ninja supported platforms, run:
+
+```bash
+$ ./gyp_uv.py -f ninja
+$ ninja -C out/Debug     #for debug build OR
+$ ninja -C out/Release
+```
+
+
+### Running tests
+
+#### Build
+
+Build (includes tests):
+
+```bash
+$ ./gyp_uv.py -f make
+$ make -C out
+```
+
+#### Run all tests
+
+```bash
+$ ./out/Debug/run-tests
+```
+
+#### Run one test
+
+The list of all tests is in `test/test-list.h`.
+
+This invocation will cause the `run-tests` driver to fork and execute `TEST_NAME` in a child process:
+
+```bash
+$ ./out/Debug/run-tests TEST_NAME
+```
+
+This invocation will cause the `run-tests` driver to execute the test within the `run-tests` process:
+
+```bash
+$ ./out/Debug/run-tests TEST_NAME TEST_NAME
+```
+
+#### Debugging tools
+
+When running the test from within the `run-tests` process (`run-tests TEST_NAME TEST_NAME`), tools like gdb and valgrind work normally.
+When running the test from a child of the `run-tests` process (`run-tests TEST_NAME`), use these tools in a fork-aware manner.
+
+##### Fork-aware gdb
+
+Use the [follow-fork-mode](https://sourceware.org/gdb/onlinedocs/gdb/Forks.html) setting:
+
+```
+$ gdb --args out/Debug/run-tests TEST_NAME
+
+(gdb) set follow-fork-mode child
+...
+```
+
+##### Fork-aware valgrind
+
+Use the `--trace-children=yes` parameter:
+
+```bash
+$ valgrind --trace-children=yes -v --tool=memcheck --leak-check=full --track-origins=yes --leak-resolution=high --show-reachable=yes --log-file=memcheck-%p.log out/Debug/run-tests TEST_NAME
+```
+
+### Running benchmarks
+
+See the section on running tests.
+The benchmark driver is `out/Debug/run-benchmarks` and the benchmarks are listed in `test/benchmark-list.h`.
+
+## Supported Platforms
+
+Check the [SUPPORTED_PLATFORMS file](SUPPORTED_PLATFORMS.md).
+
+### AIX Notes
+
+AIX compilation using IBM XL C/C++ requires version 12.1 or greater.
+
+AIX support for filesystem events requires the non-default IBM `bos.ahafs`
+package to be installed.  This package provides the AIX Event Infrastructure
+that is detected by `autoconf`.
+[IBM documentation](http://www.ibm.com/developerworks/aix/library/au-aix_event_infrastructure/)
+describes the package in more detail.
+
+AIX support for filesystem events is not compiled when building with `gyp`.
+
+### z/OS Notes
+
+z/OS creates System V semaphores and message queues. These persist on the system
+after the process terminates unless the event loop is closed.
+
+Use the `ipcrm` command to manually clear up System V resources.
+
+## Patches
+
+See the [guidelines for contributing][].
+
+[node.js]: http://nodejs.org/
+[GYP]: http://code.google.com/p/gyp/
+[guidelines for contributing]: https://github.com/libuv/libuv/blob/master/CONTRIBUTING.md
+[libuv_banner]: https://raw.githubusercontent.com/libuv/libuv/master/img/banner.png
+[x32]: https://en.wikipedia.org/wiki/X32_ABI
+[Python 2.6 or 2.7]: https://www.python.org/downloads/
+[Visual C++ Build Tools]: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+[Visual Studio 2015 Update 3]: https://www.visualstudio.com/vs/older-downloads/
+[Visual Studio 2017]: https://www.visualstudio.com/downloads/
+[Git for Windows]: http://git-scm.com/download/win
